@@ -13,6 +13,9 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
 )
 
+find_package(PCL REQUIRED QUIET)
+
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -117,7 +120,13 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
 # include
+  include
   ${catkin_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+)
+
+link_directories(
+    ${PCL_LIBRARY_DIRS}
 )
 
 ## Declare a C++ library
@@ -136,6 +145,10 @@ include_directories(
 # add_executable(${PROJECT_NAME}_node src/ros_tools_node.cpp)
 add_executable(imu_add_noise src/imu_add_noise.cpp)
 target_link_libraries(imu_add_noise ${catkin_LIBRARIES})
+
+add_executable(ros_pointcloud_pub src/ros_pointcloud_pub.cpp)
+target_link_libraries(ros_pointcloud_pub ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
