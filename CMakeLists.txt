@@ -146,8 +146,8 @@ link_directories(
 add_executable(imu_add_noise src/imu_add_noise.cpp)
 target_link_libraries(imu_add_noise ${catkin_LIBRARIES})
 
-add_executable(ros_pointcloud_pub src/ros_pointcloud_pub.cpp)
-target_link_libraries(ros_pointcloud_pub ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(ros_pc_imu_pub src/ros_pc_imu_pub.cpp)
+target_link_libraries(ros_pc_imu_pub ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 
 ## Rename C++ executable without prefix
