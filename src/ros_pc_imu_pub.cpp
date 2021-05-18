@@ -12,6 +12,8 @@
 
 #include <random>
 
+#include "udp_pcap_reader.hpp"
+
 #include "/home/zhenyu/cpp_util/cpp_util.hpp"
 
 
@@ -40,6 +42,31 @@ void readTimeStamp(std::vector<double>& time_stamp, std::string timestamp_filena
         //time_stamp.push_back(std::stod(data[1]));
         time_stamp.push_back(t); //fake
         t += 0.1;
+    }
+}
+
+void readPcDataFromPcap(UdpPcapReader& reader, pcl::PointCloud<pcl::PointXYZI>& cloud)
+{
+    printv("readPcDataFromPcap");
+    if(!reader.empty())
+    {
+        UdpPcapPointCloud pc = reader.getPc();
+        printv(pc.size());
+        for(int i = 0 ; i < pc.size() ; i++)
+        {
+            pcl::PointXYZI point;
+            point.x = pc.points[i].x;
+            point.y = pc.points[i].y;
+            point.z = pc.points[i].z;
+            point.intensity = pc.points[i].intensity;
+            //point.ring = count%16;
+            cloud.push_back(point);
+        }
+        printv(cloud.size());
+    }
+    else
+    {
+        std::cout<<"End of pcap.."<<std::endl;
     }
 }
 
@@ -160,18 +187,26 @@ void publishPointCloudData(pcl::PointCloud<pcl::PointXYZI> laserCloudIn)
 int main(int argc, char** argv)
 {
 
-    int mode  = 1;
+    int mode  = 2;
     //Mode = 0 : KITTI RAW data
     //Mode = 1 : KITTI odometry data
+    //Mode = 2 : VLP16 PCAP from UDP
 
+    UdpPcapReader reader;
 
     std::string data_path = "";
     if(mode==0)
         data_path = "/home/zhenyu/datasets/kitti/2011_09_26_drive_0117_sync/2011_09_26/2011_09_26_drive_0117_sync/";
-    else
+    else if(mode==1)
         data_path = "/home/zhenyu/datasets/kitti/data_odometry_velodyne/dateset/sequences/00/";
+    else
+    {
+        data_path = argv[1];
+        reader.setDataPath(data_path);
+    }
 
     int pc_total_count = -1;
+
 
     //std::vector<double> time_stamp;
     //readTimeStamp(time_stamp, data_path+ "velodyne_points/timestamps.txt");
@@ -194,8 +229,11 @@ int main(int argc, char** argv)
     std::string pc_path = "";
     if(mode==0)
         pc_path = data_path + "velodyne_points/data/";
-    else
+    else if(mode == 1)
         pc_path = data_path + "velodyne/";
+    else
+        pc_path = data_path;
+
     std::string imu_path = data_path + "oxts/data/";
     std::string file_name = "";
     std::string postfix = ".bin";
@@ -210,46 +248,56 @@ int main(int argc, char** argv)
     while (ros::ok())
     {
         ros::spinOnce();
-        printv(pc_count);
 
-        int digis = -1;
-        if(mode==0)
-            digis = 10;
+        if(mode<=1)
+        {
+            printv(pc_count);
+
+            int digis = -1;
+            if(mode==0)
+                digis = 10;
+            else
+                digis = 6;
+
+            file_name = std::to_string(pc_count);
+            int zeros = digis-file_name.size();
+            for(int i = 0 ; i < zeros ; i++)
+                file_name = "0"+file_name;
+
+            // try to publish IMU data
+            postfix = ".txt";
+            float deltat = 0.1;
+            if (mode==0 && pc_count<pc_total_count)
+            {
+                //ImuRaw imu_raw_data;
+                sensor_msgs::Imu imu_data;
+                readImuData(imu_data, imu_path+file_name+postfix);
+
+                publishImuData(imu_data);
+            }   
+
+            // try to publish point cloud
+            postfix = ".bin";
+            if (pc_count<pc_total_count)
+            {
+                //printv(pc_count);
+                pcl::PointCloud<pcl::PointXYZI> laserCloudIn;
+                readPcData(laserCloudIn, pc_path+file_name+postfix);
+                publishPointCloudData(laserCloudIn);
+            }   
+
+            pc_count++;
+
+            if(pc_count>=pc_total_count)
+            {
+                break;
+            }
+        }
         else
-            digis = 6;
-
-        file_name = std::to_string(pc_count);
-        int zeros = digis-file_name.size();
-        for(int i = 0 ; i < zeros ; i++)
-            file_name = "0"+file_name;
-
-        // try to publish IMU data
-        postfix = ".txt";
-        float deltat = 0.1;
-        if (mode==0 && pc_count<pc_total_count)
         {
-            //ImuRaw imu_raw_data;
-            sensor_msgs::Imu imu_data;
-            readImuData(imu_data, imu_path+file_name+postfix);
-
-            publishImuData(imu_data);
-        }   
-
-        // try to publish point cloud
-        postfix = ".bin";
-        if (pc_count<pc_total_count)
-        {
-            //printv(pc_count);
             pcl::PointCloud<pcl::PointXYZI> laserCloudIn;
-            readPcData(laserCloudIn, pc_path+file_name+postfix);
+            readPcDataFromPcap(reader, laserCloudIn);
             publishPointCloudData(laserCloudIn);
-        }   
-
-        pc_count++;
-
-        if(pc_count>=pc_total_count)
-        {
-            break;
         }
 
         printv(ros::Time().now());
