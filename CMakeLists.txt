@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(PCL REQUIRED QUIET)
 
+add_subdirectory(libLAS)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -122,6 +123,7 @@ message("catkin_INCLUDE_DIRS = " ${catkin_INCLUDE_DIRS})
 include_directories(
 # include
   include
+  libLAS/include
   ../velodyne/velodyne_pointcloud/include
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
@@ -149,7 +151,9 @@ add_executable(imu_add_noise src/imu_add_noise.cpp)
 target_link_libraries(imu_add_noise ${catkin_LIBRARIES})
 
 add_executable(ros_pc_imu_pub src/ros_pc_imu_pub.cpp)
-target_link_libraries(ros_pc_imu_pub velodyne_rawdata
+target_link_libraries(ros_pc_imu_pub 
+velodyne_rawdata
+las
 ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(udp_reader src/udp_reader.cpp)

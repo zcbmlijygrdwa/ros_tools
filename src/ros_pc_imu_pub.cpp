@@ -16,6 +16,7 @@
 
 #include "/home/zhenyu/cpp_util/cpp_util.hpp"
 
+#include "LasWriter.hpp"
 
 ros::Publisher pubLidarRaw;
 ros::Publisher pubIMURaw;
@@ -58,7 +59,7 @@ void readPcDataFromPcap(UdpPcapReader& reader, pcl::PointCloud<pcl::PointXYZI>& 
             point.x = pc.points[i].x;
             point.y = pc.points[i].y;
             point.z = pc.points[i].z;
-            point.intensity = pc.points[i].intensity;
+            point.intensity = pc.points[i].intensity/255.0f;
             //point.ring = count%16;
             cloud.push_back(point);
         }
@@ -244,6 +245,8 @@ int main(int argc, char** argv)
     pc_total_count = file_list.size();
     printvec(file_list);
     printv(pc_total_count);
+            
+    pcl::PointCloud<pcl::PointXYZI> accum_pc;
 
     while (ros::ok())
     {
@@ -297,6 +300,8 @@ int main(int argc, char** argv)
         {
             pcl::PointCloud<pcl::PointXYZI> laserCloudIn;
             readPcDataFromPcap(reader, laserCloudIn);
+            accum_pc += laserCloudIn;
+            write(accum_pc, "accum_pc.las");
             publishPointCloudData(laserCloudIn);
         }
 

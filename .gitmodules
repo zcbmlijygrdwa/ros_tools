@@ -1,0 +1,3 @@
+[submodule "libLAS"]
+	path = libLAS
+	url = https://github.com/libLAS/libLAS.git
