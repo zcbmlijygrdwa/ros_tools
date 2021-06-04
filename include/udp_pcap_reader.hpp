@@ -18,7 +18,7 @@ class UdpPcapReader
         long filelen;
         long num_packet = 0;
 
-        velodyne_rawdata::raw_packet_t* packet_ptr = nullptr;
+        velodyne_rawdata::raw_packet_udp_t* packet_ptr = nullptr;
         velodyne_rawdata::UdpRawData rd;
 
         int count = 0;
@@ -48,6 +48,8 @@ class UdpPcapReader
             fclose(fileptr); // Close the file
 
             num_packet = filelen/PACKET_SIZE;
+            printv(filelen);
+            printv(num_packet);
 
             rd.setParameters(0,500,0,0);
             rd.setupOffline("/home/zhenyu/catkin_ws/src/velodyne/velodyne_pointcloud/params/VLP16db.yaml", 500,0);
@@ -64,12 +66,11 @@ class UdpPcapReader
         UdpPcapPointCloud getPc()
         {
             UdpPcapPointCloud pc;
-            for(int i = 0 ; i < 5 &&(!empty()) ; i++)
-            {
-                packet_ptr = (velodyne_rawdata::raw_packet_t*)(buffer)+count;
-                rd.unpack_for_udp(packet_ptr, pc);
-                count++;
-            }
+            packet_ptr = (velodyne_rawdata::raw_packet_udp_t*)(buffer)+count;
+            rd.unpack_for_udp(packet_ptr, pc);
+            count++;
+            //printv(count);
+            //printv(pc.timestamp);
 
             return pc;
         }

@@ -12,6 +12,7 @@ namespace velodyne_rawdata
 
     class UdpRawData : public RawData
     {
+        uint32_t last_time = 0;
         public:
             UdpRawData()
             {
@@ -21,7 +22,7 @@ namespace velodyne_rawdata
             {
             }
 
-            void unpack_for_udp(const raw_packet_t* raw, UdpPcapPointCloud& pc)
+            void unpack_for_udp(const raw_packet_udp_t* raw, UdpPcapPointCloud& pc)
             {
                 pc.clear();
                 float azimuth;
@@ -33,6 +34,59 @@ namespace velodyne_rawdata
                 float x, y, z;
                 float intensity;
 
+                //printv(sizeof(raw_packet_udp));
+                //uint32_t timestamp = raw->status;
+                //printv(timestamp);
+
+                //std::string str = "";
+                //uint32_t t2 = 0;
+                //for(int i = 0 ; i < 32 ; i++)
+                //{
+                //    t2 <<= 1;
+                //    if(timestamp & 1 == 1)
+                //    {
+                //        //str = "1"+str;
+                //        str = str + "1";
+                //        t2 |= 1;
+                //    }
+                //    else
+                //    {
+                //        //str = "0" + str;
+                //        str = str + "0";
+                //        t2 |= 0;
+                //    }
+
+                //    if((i+1)%8==0)
+                //        //str = " "+str;
+                //        str = str+" ";
+
+                //     timestamp >>= 1;
+                //}
+
+                ////reverse order of bytes in t2
+                //printv(t2);
+                //uint8_t* t2_ptr = (uint8_t*)&t2;
+                //uint8_t temp = t2_ptr[3];
+                //t2_ptr[3] = t2_ptr[0];
+                //t2_ptr[0] = temp;
+
+                //std::cout<<"temp = "<<+temp<<std::endl;
+
+                //temp = t2_ptr[2];
+                //t2_ptr[2] = t2_ptr[1];
+                //t2_ptr[1] = temp;
+
+                //std::cout<<"temp = "<<+temp<<std::endl;
+
+                //printv(str);
+                //printv(t2);
+
+                //printv("\n\n\n");
+                //printv((uint32_t)(raw->status));
+                uint32_t time_diff = (uint32_t)(raw->status) - last_time;
+                //printv(time_diff);
+                last_time = (uint32_t)(raw->status);
+                //std::cout<<"return_mode = "<<+(raw->return_mode)<<", product_id = "<<+(raw->product_id)<<std::endl;
                 //float time_diff_start_to_this_packet = (pkt.stamp - scan_start_time).toSec();
 
                 for (int block = 0; block < BLOCKS_PER_PACKET; block++) {
@@ -199,6 +253,8 @@ namespace velodyne_rawdata
                                 point.intensity = intensity;
                                 point.ring = corrections.laser_ring;
                                 pc.push_back(point);
+                                //pc.timestamp = (*(unsigned int*)(raw->status))/1000000000.0;
+                                pc.timestamp = ((uint32_t)(raw->status))/1000000.0;
 
                                 //printv(x_coord);
                                 //printv(y_coord);

@@ -13,6 +13,8 @@ struct UdpPcapPoint
 class UdpPcapPointCloud
 {
     public:
+        double timestamp = 0;
+        
         std::vector<UdpPcapPoint> points;
 
         int size()

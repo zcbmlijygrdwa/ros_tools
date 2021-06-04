@@ -5,6 +5,8 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_ros/point_cloud.h>
+#include <pcl/common/transforms.h>
+
 #include <sensor_msgs/Imu.h>
 #include <tf/transform_datatypes.h>
 
@@ -20,6 +22,8 @@
 
 ros::Publisher pubLidarRaw;
 ros::Publisher pubIMURaw;
+
+std::ofstream myfile;
 
 struct ImuRaw
 {
@@ -51,17 +55,21 @@ void readPcDataFromPcap(UdpPcapReader& reader, pcl::PointCloud<pcl::PointXYZI>& 
     printv("readPcDataFromPcap");
     if(!reader.empty())
     {
-        UdpPcapPointCloud pc = reader.getPc();
-        printv(pc.size());
-        for(int i = 0 ; i < pc.size() ; i++)
+        for(int m = 0 ; m < 200 ; m++)
         {
-            pcl::PointXYZI point;
-            point.x = pc.points[i].x;
-            point.y = pc.points[i].y;
-            point.z = pc.points[i].z;
-            point.intensity = pc.points[i].intensity/255.0f;
-            //point.ring = count%16;
-            cloud.push_back(point);
+            UdpPcapPointCloud pc = reader.getPc();
+            //printv(pc.size());
+            for(int i = 0 ; i < pc.size() ; i++)
+            {
+                pcl::PointXYZI point;
+                point.x = pc.points[i].x;
+                point.y = pc.points[i].y;
+                point.z = pc.points[i].z;
+                point.intensity = pc.points[i].intensity/255.0f;
+                //point.ring = count%16;
+                cloud.push_back(point);
+            }
+            myfile <<pc.timestamp<<"\n";
         }
         printv(cloud.size());
     }
@@ -185,8 +193,30 @@ void publishPointCloudData(pcl::PointCloud<pcl::PointXYZI> laserCloudIn)
     pubLidarRaw.publish(cloudMsgTemp);
 }
 
+struct struct_A
+{
+  uint8_t v1[4];   // 4 bytes
+  uint8_t v2;
+};
+
+struct struct_B
+{
+  uint32_t v1;  // 4 bytes
+  uint8_t v2; // 1 byte
+};
+
+
 int main(int argc, char** argv)
 {
+
+myfile.open ("udp_lidar_timestamp_log.txt");
+
+std::cout<<"size of struct_A is: "<<(sizeof(struct_A))    <<std::endl;
+std::cout<<"size of struct_A::v1 is: "<<(sizeof(struct_A::v1))<<std::endl;
+std::cout<<"size of struct_A::v2 is: "<<(sizeof(struct_A::v2))<<std::endl;
+std::cout<<"size of struct_B is: "<<(sizeof(struct_B))    <<std::endl;
+std::cout<<"size of struct_B::v1 is: "<<(sizeof(struct_B::v1))<<std::endl;
+std::cout<<"size of struct_B::v2 is: "<<(sizeof(struct_B::v2))<<std::endl;
 
     int mode  = 2;
     //Mode = 0 : KITTI RAW data
@@ -202,6 +232,12 @@ int main(int argc, char** argv)
         data_path = "/home/zhenyu/datasets/kitti/data_odometry_velodyne/dateset/sequences/00/";
     else
     {
+        if(argc<=1)
+        {
+            std::cout<<"[USAGE EXAMPLE]: rosrun ros_tools ros_pc_imu_pub /home/zhenyu/udp_data/udp_data/lidar.pcap"<<std::endl;
+
+            return 1;
+        }
         data_path = argv[1];
         reader.setDataPath(data_path);
     }
@@ -226,7 +262,7 @@ int main(int argc, char** argv)
 
     ROS_INFO("\033[1;32m---->\033[0m Lidar Raw publishing Started.");
 
-    ros::Rate rate(2);
+    ros::Rate rate(1);
     std::string pc_path = "";
     if(mode==0)
         pc_path = data_path + "velodyne_points/data/";
@@ -245,8 +281,8 @@ int main(int argc, char** argv)
     pc_total_count = file_list.size();
     printvec(file_list);
     printv(pc_total_count);
-            
-    pcl::PointCloud<pcl::PointXYZI> accum_pc;
+
+    //pcl::PointCloud<pcl::PointXYZI> accum_pc;
 
     while (ros::ok())
     {
@@ -286,6 +322,7 @@ int main(int argc, char** argv)
                 //printv(pc_count);
                 pcl::PointCloud<pcl::PointXYZI> laserCloudIn;
                 readPcData(laserCloudIn, pc_path+file_name+postfix);
+                myfile << "\n";
                 publishPointCloudData(laserCloudIn);
             }   
 
@@ -300,14 +337,37 @@ int main(int argc, char** argv)
         {
             pcl::PointCloud<pcl::PointXYZI> laserCloudIn;
             readPcDataFromPcap(reader, laserCloudIn);
-            accum_pc += laserCloudIn;
-            write(accum_pc, "accum_pc.las");
+            
+            //apply calibration
+
+            //https://pointclouds.org/documentation/tutorials/matrix_transform.html
+            Eigen::Affine3f transform_2 = Eigen::Affine3f::Identity();
+
+            // Define a translation of 2.5 meters on the x axis.
+            //transform_2.translation() << 2.5, 0.0, 0.0;
+
+            // The same rotation matrix as before; theta radians around Z axis
+            double theta = 0.15;
+            transform_2.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitY()));
+
+            //// Print the transformation
+            //printf ("\nMethod #2: using an Affine3f\n");
+            //std::cout << transform_2.matrix() << std::endl;
+
+            // You can either apply transform_1 or transform_2; they are the same
+            pcl::transformPointCloud (laserCloudIn, laserCloudIn, transform_2);
+
+
+            //accum_pc += laserCloudIn;
+            //printv(accum_pc.points.size());
+            //write(accum_pc, "accum_pc.las");
             publishPointCloudData(laserCloudIn);
         }
 
         printv(ros::Time().now());
         rate.sleep();
     }
+    myfile.close();
 
     return 0;
 }
