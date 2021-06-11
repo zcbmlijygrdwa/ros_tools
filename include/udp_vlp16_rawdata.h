@@ -82,9 +82,9 @@ namespace velodyne_rawdata
                 //printv(t2);
 
                 //printv("\n\n\n");
-                //printv((uint32_t)(raw->status));
+                printv((uint32_t)(raw->status));
                 uint32_t time_diff = (uint32_t)(raw->status) - last_time;
-                //printv(time_diff);
+                //printvP(time_diff);
                 last_time = (uint32_t)(raw->status);
                 //std::cout<<"return_mode = "<<+(raw->return_mode)<<", product_id = "<<+(raw->product_id)<<std::endl;
                 //float time_diff_start_to_this_packet = (pkt.stamp - scan_start_time).toSec();

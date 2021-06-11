@@ -25,6 +25,9 @@ ros::Publisher pubIMURaw;
 
 std::ofstream myfile;
 
+
+float time_start = -1;
+
 struct ImuRaw
 {
 
@@ -50,12 +53,12 @@ void readTimeStamp(std::vector<double>& time_stamp, std::string timestamp_filena
     }
 }
 
-void readPcDataFromPcap(UdpPcapReader& reader, pcl::PointCloud<pcl::PointXYZI>& cloud)
+bool readPcDataFromPcap(UdpPcapReader& reader, pcl::PointCloud<pcl::PointXYZI>& cloud)
 {
     printv("readPcDataFromPcap");
     if(!reader.empty())
     {
-        for(int m = 0 ; m < 200 ; m++)
+        for(int m = 0 ; m < 1; m++)
         {
             UdpPcapPointCloud pc = reader.getPc();
             //printv(pc.size());
@@ -70,12 +73,24 @@ void readPcDataFromPcap(UdpPcapReader& reader, pcl::PointCloud<pcl::PointXYZI>& 
                 cloud.push_back(point);
             }
             myfile <<pc.timestamp<<"\n";
+
+            printv(pc.timestamp);
+
+            if(time_start<0)
+                time_start = pc.timestamp;
+            else
+            {
+                printv((time_start));
+                printv((pc.timestamp - time_start));
+            }
         }
         printv(cloud.size());
+        return true;
     }
     else
     {
         std::cout<<"End of pcap.."<<std::endl;
+        return false;
     }
 }
 
@@ -208,7 +223,8 @@ struct struct_B
 
 int main(int argc, char** argv)
 {
-
+    printv(argc);
+printv(argv[1]);
 myfile.open ("udp_lidar_timestamp_log.txt");
 
 std::cout<<"size of struct_A is: "<<(sizeof(struct_A))    <<std::endl;
@@ -262,7 +278,7 @@ std::cout<<"size of struct_B::v2 is: "<<(sizeof(struct_B::v2))<<std::endl;
 
     ROS_INFO("\033[1;32m---->\033[0m Lidar Raw publishing Started.");
 
-    ros::Rate rate(1);
+    ros::Rate rate(100);
     std::string pc_path = "";
     if(mode==0)
         pc_path = data_path + "velodyne_points/data/";
@@ -336,7 +352,12 @@ std::cout<<"size of struct_B::v2 is: "<<(sizeof(struct_B::v2))<<std::endl;
         else
         {
             pcl::PointCloud<pcl::PointXYZI> laserCloudIn;
-            readPcDataFromPcap(reader, laserCloudIn);
+            bool res = readPcDataFromPcap(reader, laserCloudIn);
+            
+            if(!res)
+            {
+                return 0;
+            }
             
             //apply calibration
 
